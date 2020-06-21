@@ -127,7 +127,7 @@ jobs:
         echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ steps.prepare.outputs.docker_username }}" --password-stdin docker.io
         ${{ steps.prepare.outputs.buildx }} \
         --output type=image,name=${{ steps.prepare.outputs.docker_image }},push=true \
-        --tag "${{ steps.prepare.outputs.docker_image }}:${{ steps.prepare.outputs.version }}") \
+        --tag "${{ steps.prepare.outputs.docker_image }}:${{ steps.prepare.outputs.version }}" \
         --tag "${{ steps.prepare.outputs.docker_image }}:latest" \
         --file Dockerfile .
 
@@ -144,7 +144,7 @@ jobs:
         echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ steps.prepare.outputs.docker_username }}" --password-stdin docker.io
         ${{ steps.prepare.outputs.buildx }} \
         --output type=image,name=${{ steps.prepare.outputs.docker_image }},push=true \
-        --tag "${{ steps.prepare.outputs.docker_image }}:${{ steps.prepare.outputs.version }}") \
+        --tag "${{ steps.prepare.outputs.docker_image }}:${{ steps.prepare.outputs.version }}" \
         --file Dockerfile .
 
         # pkg.github.com
