@@ -29,7 +29,7 @@ class MainSanityCheck(db.DBSanityCheck):
         logger.debug(_("Checking for archived episodes not qualified"))
 
         sql_results = self.connection.select(
-            "SELECT episode_id, showid, status, location, season, episode FROM tv_episodes WHERE status = ?", [common.ARCHIVED]
+            "SELECT episode_id, showid, status, location, season, episode FROM tv_episodes WHERE status = :archived", {"archived": common.ARCHIVED}
         )
         if sql_results:
             logger.warning(_("Found {count} shows with bare archived status, attempting automatic conversion...".format(count=len(sql_results))))
@@ -199,7 +199,7 @@ class MainSanityCheck(db.DBSanityCheck):
             self.connection.action("UPDATE tv_episodes SET status = ? WHERE episode_id = ?", [fixed_status, episode_id])
 
     def fix_invalid_airdates(self):
-        sql_results = self.connection.select("SELECT episode_id, showid FROM tv_episodes WHERE airdate >= ? OR airdate < 1", [datetime.date.max.toordinal()])
+        sql_results = self.connection.select("SELECT episode_id, showid FROM tv_episodes WHERE airdate >= :airdate OR airdate < 1", {"airdate": datetime.date.max.toordinal()})
 
         for bad_airdate in sql_results:
             current_episode_id = bad_airdate["episode_id"]

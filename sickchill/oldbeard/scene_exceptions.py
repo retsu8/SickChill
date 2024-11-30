@@ -21,7 +21,7 @@ def should_refresh(exception_list):
     seconds_per_day = 24 * 60 * 60
 
     cache_db_con = db.DBConnection("cache.db")
-    rows = cache_db_con.select("SELECT last_refreshed FROM scene_exceptions_refresh WHERE list = ?", [exception_list])
+    rows = cache_db_con.select("SELECT last_refreshed FROM scene_exceptions_refresh WHERE list = :exception_list", {"exception_list": exception_list})
     if rows:
         last_refresh = int(rows[0]["last_refreshed"])
         return int(time.mktime(datetime.datetime.today().timetuple())) > last_refresh + seconds_per_day

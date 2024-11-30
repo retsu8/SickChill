@@ -58,9 +58,9 @@ def update_network_dict():
     for network, timezone in d.items():
         existing = network in network_list
         if not existing:
-            queries.append(["INSERT OR IGNORE INTO network_timezones VALUES (?,?);", [network, timezone]])
+            queries.append(["INSERT OR IGNORE INTO network_timezones VALUES :network,:tmz);", {"network":network, "tmz":timezone}])
         elif network_list[network] != timezone:
-            queries.append(["UPDATE OR IGNORE network_timezones SET timezone = ? WHERE network_name = ?;", [timezone, network]])
+            queries.append(["UPDATE OR IGNORE network_timezones SET timezone = :tmz WHERE network_name = :network;", {"network":network, "tmz":timezone}])
 
         if existing:
             del network_list[network]

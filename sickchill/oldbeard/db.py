@@ -7,12 +7,20 @@ import traceback
 import warnings
 from sqlite3 import OperationalError
 from typing import List
+from sqlalchemy import create_engine, event, Column, Integer, String, text, inspect, insert
 
 from sickchill import logger, settings
 
 db_cons = {}
 db_locks = {}
 
+# PYTHON FUNCTION TO CONNECT TO THE MYSQL DATABASE AND
+# RETURN THE SQLACHEMY ENGINE OBJECT
+def get_connection(full_path):
+    return create_engine(
+        url=f'sqlite:///{full_path}', 
+        connect_args={"timeout": 20}     
+    )
 
 def db_full_path(filename="sickchill.db", suffix=None):
     """
@@ -44,9 +52,10 @@ class DBConnection(object):
         try:
             if self.filename not in db_cons or not db_cons[self.filename]:
                 db_locks[self.filename] = threading.Lock()
+                self.connection = get_connection(self.full_path).connect()
 
-                self.connection = sqlite3.connect(self.full_path, 20, check_same_thread=False)
                 db_cons[self.filename] = self.connection
+                
             else:
                 self.connection = db_cons[self.filename]
 
@@ -116,11 +125,14 @@ class DBConnection(object):
         :param fetchone: Boolean to indicate one result must be fetched (to walk results for instance)
         :return: query results
         """
+        logger.debug(query)
+        logger.debug(args)
         try:
+            sql = text(query)
             if not args:
-                sql_results = self.connection.cursor().execute(query)
+                sql_results = self.connection.execute(sql)
             else:
-                sql_results = self.connection.cursor().execute(query, args)
+                sql_results = self.connection.execute(sql, args)
             if fetchall:
                 return sql_results.fetchall()
             elif fetchone:
@@ -346,7 +358,9 @@ class DBConnection(object):
         :param key_dict:  columns in table to update/insert
         """
 
-        changesBefore = self.connection.total_changes
+        changesBefore = inspect(self.connection)
+        logger.debug("these are the inspected changes")
+        logger.debug(changesBefore)
 
         assert None not in list(key_dict.values()), _("Control dict to upsert cannot have values of None!")
         if key_dict:
@@ -354,11 +368,9 @@ class DBConnection(object):
             def make_string(my_dict, separator):
                 return separator.join(["{} = ?".format(x) for x in my_dict])
 
-            # language=TEXT
             query = "UPDATE [{table}] SET {pairs} WHERE {control}".format(
                 table=table_name, pairs=make_string(value_dict, ", "), control=make_string(key_dict, " AND ")
             )
-
             self.action(query, list(value_dict.values()) + list(key_dict.values()))
 
         if self.connection.total_changes == changesBefore:
@@ -369,6 +381,8 @@ class DBConnection(object):
             values = list(value_dict.values()) + list(key_dict.values())
 
             # language=TEXT
+            insert(table).columns(columns).values(replacements)
+            logger.debug(replacements)
             query = "INSERT INTO '{table}' ({columns}) VALUES ({replacements})".format(table=table_name, columns=columns, replacements=replacements)
 
             self.action(query, values)
@@ -380,7 +394,7 @@ class DBConnection(object):
         :param table_name: name of table
         :return: array of name/type info
         """
-        return {column["name"]: {"type": column["type"]} for column in self.select("PRAGMA table_info(`{0}`)".format(table_name))}
+        return {column.name: {"type": column.type} for column in self.select("PRAGMA table_info(`{0}`)".format(table_name))}
 
     @staticmethod
     def _dict_factory(cursor, row):
@@ -393,7 +407,7 @@ class DBConnection(object):
         :param table_name: table name to check
         :return: True if table exists, False if it does not
         """
-        return len(self.select("SELECT 1 FROM sqlite_master WHERE name = ?;", (table_name,))) > 0
+        return len(self.select("SELECT 1 FROM sqlite_master WHERE name = :db_version;", {"db_version": table_name})) > 0
 
     def has_column(self, table_name, column):
         """
